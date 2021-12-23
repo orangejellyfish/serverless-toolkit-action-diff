@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+
+set -e
+
+if [ -z "$DIFF" ]; then
+  echo "::set-output name=dirs::[]"
+else
+  JSON="["
+
+  # Loop by lines in the diff output fom the previous job.
+  while read -r path; do
+
+    # Extract base directory from the path.
+    base_dir="$(echo "$path" | cut -d '/' -f 1 -s)"
+
+    # If the base directory matches the configured service directory
+    # we know we need to deploy that service.
+    if [[ "$base_dir" == "$SERVICES_PATH" ]]; then
+      service_dir="$(echo "$path" | cut -d '/' -f 2 -s)"
+      line="\"$service_dir\","
+
+      # Add service to the build matrix if not already included.
+      if [[ "$JSON" != *"$line"* ]]; then
+        JSON="$JSON$line"
+      fi
+
+    # If the base directory sits outside the configured service
+    # directory we take the safe approach and deploy all services. The
+    # ideal solution here would be to deploy only those services which
+    # depend on the changed files but that's much more complex.
+    elif [[ "$base_dir" != ".github" ]]; then
+      for path in services/*; do
+        [ -e "$path" ] || continue
+        service_dir="$(echo "$path" | cut -d '/' -f 2 -s)"
+        line="\"$service_dir\","
+
+        # Add service to the build matrix if not already included.
+        if [[ "$JSON" != *"$line"* ]]; then
+          JSON="$JSON$line"
+        fi
+      done
+    fi
+  done <<< "$DIFF"
+
+  # Remove last "," and add closing brackets.
+  if [[ $JSON == *, ]]; then
+    JSON="${JSON%?}"
+  fi
+  JSON="$JSON]"
+  echo "$JSON"
+
+  # Set output.
+  echo "::set-output name=matrix::$(echo "$JSON")"
+fi

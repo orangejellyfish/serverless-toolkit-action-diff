@@ -1,0 +1,37 @@
+name: Serverless microservices deployment
+description: Deploy individual services from a Serverless Framework microservices monorepo.
+author: jamesallardice
+
+inputs:
+  path:
+    description: The path to the services directory of your microservices monorepo
+    required: true
+    default: services
+  sha:
+    description: The commit hash to diff up to
+    required: true
+    default: ${{github.sha}}
+
+outputs:
+  matrix:
+    description: The list of service directories containing changed files
+    value: ${{steps.set-build-matrix.outputs.matrix}}
+
+runs:
+  using: composite
+  steps:
+    - run: |
+        bash $GITHUB_ACTION_PATH/scripts/diff
+      id: diff
+      shell: bash
+      env:
+        BASE_SHA: ${{github.event.before}}
+        NEXT_SHA: ${{inputs.sha}}
+
+    - run: |
+        bash $GITHUB_ACTION_PATH/scripts/set-build-matrix
+      id: set-build-matrix
+      shell: bash
+      env:
+        DIFF: ${{steps.diff.outputs.diff}}
+        SERVICES_PATH: ${{inputs.path}}

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+set -e
+
+git fetch origin "$BASE_SHA" --depth=1
+DIFF=$(git diff --name-only "$BASE_SHA" "$NEXT_SHA")
+
+echo "Diff between $BASE_SHA and $NEXT_SHA"
+echo "$DIFF"
+
+# Escape newlines (replace \n with %0A) because GitHub actions cannot handle
+# multiline output.
+#
+# See: https://trstringer.com/github-actions-multiline-strings/
+echo "::set-output name=diff::$(echo "$DIFF" | sed ':a;N;$!ba;s/\n/%0A/g')"
